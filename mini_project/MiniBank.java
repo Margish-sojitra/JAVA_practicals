@@ -1,17 +1,105 @@
 import java.util.Scanner;
-
-record BankInfo(String name, String branch) {
-}
-
-enum MenuOption {
-    OPEN_ACCOUNT,
-    DEPOSIT,
-    WITHDRAW,
-    TRANSFER,
-    EXIT
-}
+import java.util.regex.Pattern;
 
 public class MiniBank {
+
+    record BankInfo(String name, String branch) {
+    }
+
+    enum MenuOption {
+        OPEN_ACCOUNT,
+        DEPOSIT,
+        WITHDRAW,
+        TRANSFER,
+        EXIT
+    }
+
+    enum TransactionType {
+        DEPOSIT,
+        WITHDRAW,
+        TRANSFER
+    }
+
+    record Command(TransactionType type, String accountNumber, long amount) {
+    }
+
+    public static class Validator {
+
+        private static final Pattern MOBILE =
+                Pattern.compile("^[6-9][0-9]{9}$");
+
+        private static final Pattern EMAIL =
+                Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
+
+        private static final Pattern PAN =
+                Pattern.compile("^[A-Z]{5}[0-9]{4}[A-Z]$");
+
+        private static final Pattern IFSC =
+                Pattern.compile("^[A-Z]{4}0[A-Z0-9]{6}$");
+
+        public static boolean isValidMobile(String mobile) {
+            return mobile != null && MOBILE.matcher(mobile).matches();
+        }
+
+        public static boolean isValidEmail(String email) {
+            return email != null && EMAIL.matcher(email).matches();
+        }
+
+        public static boolean isValidPan(String pan) {
+            return pan != null && PAN.matcher(pan).matches();
+        }
+
+        public static boolean isValidIfsc(String ifsc) {
+            return ifsc != null && IFSC.matcher(ifsc).matches();
+        }
+    }
+
+    public static class CommandParser {
+
+        public static Command parse(String line) {
+
+            String[] parts = line.trim().split("\\s+");
+
+            if (parts.length != 3) {
+                throw new IllegalArgumentException(
+                        "Command must contain type, account number and amount.");
+            }
+
+            TransactionType type =
+                    TransactionType.valueOf(parts[0].toUpperCase());
+
+            String accountNumber = parts[1];
+
+            long amount = Long.parseLong(parts[2]);
+
+            return new Command(type, accountNumber, amount);
+        }
+    }
+
+    public static class StatementFormatter {
+
+        public static String buildStatement(Account account) {
+
+            StringBuilder statement = new StringBuilder();
+
+            statement.append("========== ACCOUNT STATEMENT ==========\n");
+            statement.append("Account Number : ")
+                    .append(account.getAccountNumber())
+                    .append("\n");
+
+            statement.append("Owner Name     : ")
+                    .append(account.getOwnerName())
+                    .append("\n");
+
+            statement.append("Balance        : ")
+                    .append(account.getBalance())
+                    .append("\n");
+
+           
+
+            return statement.toString();
+        }
+    }
 
     public static class Customer implements Cloneable {
 
@@ -99,6 +187,7 @@ public class MiniBank {
 
         @Override
         public boolean equals(Object o) {
+
             if (this == o)
                 return true;
 
@@ -106,6 +195,7 @@ public class MiniBank {
                 return false;
 
             Account a = (Account) o;
+
             return accountNumber == a.accountNumber;
         }
 
@@ -121,52 +211,92 @@ public class MiniBank {
 
         BankInfo bank = new BankInfo("MiniBank", "Main Branch");
 
-
+        
         System.out.println(bank.name());
         System.out.println(bank.branch());
+        
 
+        System.out.println("\n----- Validator Testing -----");
 
-        Customer.Address address = new Customer.Address(
-                "12 MG Road",
-                "Vadodara",
-                "390001");
+        System.out.println("Valid Mobile: "
+                + Validator.isValidMobile("9876543210"));
 
-        Customer customer = new Customer("Margish", address);
-        Customer copy = customer.clone();
+        System.out.println("Invalid Mobile: "
+                + Validator.isValidMobile("1234567890"));
 
-        Account account1 = new Account(101, "Margish", 5000);
-        Account account2 = new Account(101, "Rahul", 8000);
-        Account account3 = new Account(102, "Amit", 7000);
+        System.out.println("Valid Email: "
+                + Validator.isValidEmail("user@gmail.com"));
 
-        System.out.println("\nUsing toString()");
+        System.out.println("Invalid Email: "
+                + Validator.isValidEmail("user@gmail"));
+
+        System.out.println("Valid PAN: "
+                + Validator.isValidPan("ABCDE1234F"));
+
+        System.out.println("Invalid PAN: "
+                + Validator.isValidPan("ABC12345"));
+
+        System.out.println("Valid IFSC: "
+                + Validator.isValidIfsc("SBIN0001234"));
+
+        System.out.println("Invalid IFSC: "
+                + Validator.isValidIfsc("SB123456"));
+
+        System.out.println("\n----- Command Parser Testing -----");
+
+        String input = "DEPOSIT AC0001 500";
+
+        Command command = CommandParser.parse(input);
+
+        System.out.println("Command Type    : " + command.type());
+        System.out.println("Account Number  : " + command.accountNumber());
+        System.out.println("Amount          : " + command.amount());
+
+        Account account1 = new Account(
+                101,
+                "Margish",
+                5000
+        );
+
+        Account account2 = new Account(
+                101,
+                "Rahul",
+                8000
+        );
+
+        Account account3 = new Account(
+                102,
+                "Amit",
+                7000
+        );
+
+        System.out.println("\n----- Account Testing -----");
+
         System.out.println(account1);
         System.out.println(account3);
 
-        System.out.println("\nUsing equals()");
-        System.out.println("Account1 == Account2 : " + account1.equals(account2));
-        System.out.println("Account1 == Account3 : " + account1.equals(account3));
+        System.out.println("\nAccount1 equals Account2: "
+                + account1.equals(account2));
 
-        System.out.println("\nCustomer Details");
-        System.out.println("Name : " + customer.getName());
-        System.out.println("Address : " + customer.getAddress().getLine());
-        System.out.println("City : " + customer.getAddress().getCity());
-        System.out.println("Pincode : " + customer.getAddress().getPincode());
+        System.out.println("Account1 equals Account3: "
+                + account1.equals(account3));
 
-        System.out.println("\nCloned Customer");
-        System.out.println("Name : " + copy.getName());
+        System.out.println("\n----- Statement -----");
 
-        System.out.println("\nUsing instanceof");
+        System.out.println(
+                StatementFormatter.buildStatement(account1)
+        );
+
+        System.out.println("----- instanceof Testing -----");
+
         if (account1 instanceof Account) {
             System.out.println("account1 is an Account object.");
-        }
-
-        if (customer instanceof Customer) {
-            System.out.println("customer is a Customer object.");
         }
 
         int choice;
 
         do {
+
             System.out.println("\n----- MiniBank Menu -----");
             System.out.println("1. Open Account");
             System.out.println("2. Deposit");
