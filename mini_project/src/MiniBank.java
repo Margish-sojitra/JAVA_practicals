@@ -1,3 +1,4 @@
+import exception.*;
 import model.*;
 import model.annotation.*;
 import service.*;
@@ -55,6 +56,74 @@ public class MiniBank {
         }
 
         System.out.println("\nStatic Import Test - isValidMobile: " + isValidMobile("9876543210"));
+
+        // ===== Week 8: Exception Handling & Fault-Tolerance =====
+        System.out.println("\n----- Week 8: Exception Handling & Fault-Tolerance -----");
+
+        // Try-with-resources with AutoCloseable BankTransactionSession
+        try (BankTransactionSession session = new BankTransactionSession("Txn-Session-01")) {
+            session.log("Initiating operations for Alice (Acc 101) and Bob (Acc 102)");
+
+            // 1. Successful Deposit & Withdrawal
+            try {
+                accounts[0].deposit(1000);
+                session.log("Deposited 1000 into Alice. New balance: " + accounts[0].getBalance());
+
+                accounts[0].withdraw(2000);
+                session.log("Withdrew 2000 from Alice. New balance: " + accounts[0].getBalance());
+            } catch (BankException e) {
+                System.out.println("Operation failed: " + e.getMessage());
+            } finally {
+                System.out.println("Operation block 1 finalized.");
+            }
+
+            // 2. InvalidAmountException demonstration (non-positive amount)
+            try {
+                session.log("Attempting negative deposit into Alice...");
+                accounts[0].deposit(-200);
+            } catch (InvalidAmountException e) {
+                System.out.println("Caught Expected InvalidAmountException: " + e.getMessage());
+            } finally {
+                System.out.println("Deposit validation check finalized.");
+            }
+
+            // 3. InsufficientFundsException demonstration (with shortfall)
+            try {
+                session.log("Attempting excessive withdrawal from Alice...");
+                accounts[0].withdraw(50000);
+            } catch (InsufficientFundsException e) {
+                System.out.println("Caught Expected InsufficientFundsException: " + e.getMessage() +
+                                   " [Shortfall: " + e.getShortfall() + "]");
+            } catch (BankException e) {
+                System.out.println("BankException: " + e.getMessage());
+            } finally {
+                System.out.println("Withdrawal funds check finalized.");
+            }
+
+            // 4. AccountNotFoundException demonstration
+            try {
+                session.log("Attempting transfer to null account...");
+                accounts[0].transfer(null, 500);
+            } catch (AccountNotFoundException e) {
+                System.out.println("Caught Expected AccountNotFoundException: " + e.getMessage());
+            } catch (BankException e) {
+                System.out.println("BankException: " + e.getMessage());
+            } finally {
+                System.out.println("Null account transfer check finalized.");
+            }
+
+            // 5. Successful Transfer demonstration
+            try {
+                session.log("Transferring 500 from Alice (101) to Bob (102)...");
+                accounts[0].transfer(accounts[1], 500);
+                session.log("Transfer successful! Alice Balance: " + accounts[0].getBalance() +
+                            ", Bob Balance: " + accounts[1].getBalance());
+            } catch (BankException e) {
+                System.out.println("Transfer failed: " + e.getMessage());
+            } finally {
+                System.out.println("Valid transfer check finalized.");
+            }
+        } // AutoCloseable session closed here
 
         System.out.println("\n----- MiniBank Menu -----");
         Scanner sc = new Scanner(System.in);

@@ -8,6 +8,10 @@ public class CurrentAccount extends Account {
         this.overdraftLimit = overdraftLimit;
     }
 
+    public long getOverdraftLimit() {
+        return overdraftLimit;
+    }
+
     @Override
     public double interestRate() {
         return 0.0;
@@ -16,5 +20,10 @@ public class CurrentAccount extends Account {
     @Override
     public boolean canWithdraw(long amount) {
         return (getBalance() - amount) >= -overdraftLimit;
+    }
+
+    @Override
+    public long getAvailableBalance() {
+        return (long) Math.max(0, getBalance() + overdraftLimit);
     }
 }
