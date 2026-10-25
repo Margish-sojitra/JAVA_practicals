@@ -187,6 +187,143 @@ public class MiniBank {
             System.out.println("Synchronization Success: Balance is exactly correct! All 10 threads synchronized safely.");
         }
 
+        // ===== Week 10: Thread Pools, Producer-Consumer & Deadlock Prevention =====
+        System.out.println("\n----- Week 10: Thread Pools, Producer-Consumer & Deadlock Prevention -----");
+
+        // 1 & 2. TransactionProcessor with ExecutorService (FixedThreadPool of 4)
+        System.out.println("-> Part 1 & 2: Batch Transaction Processing via TransactionProcessor (FixedThreadPool-4)");
+        TransactionProcessor processor = new TransactionProcessor();
+        Account poolAccount = new SavingsAccount(301, "PoolUser", 1000, 500);
+
+        for (int i = 1; i <= 8; i++) {
+            final int taskId = i;
+            if (taskId % 2 != 0) {
+                processor.submit(() -> {
+                    try {
+                        poolAccount.deposit(200);
+                        System.out.println("[PoolTask-" + taskId + "] Deposited 200. Balance: " + poolAccount.getBalance());
+                    } catch (BankException e) {
+                        System.err.println("[PoolTask-" + taskId + "] Error: " + e.getMessage());
+                    }
+                });
+            } else {
+                processor.submit(() -> {
+                    try {
+                        poolAccount.withdraw(100);
+                        System.out.println("[PoolTask-" + taskId + "] Withdrew 100. Balance: " + poolAccount.getBalance());
+                    } catch (BankException e) {
+                        System.err.println("[PoolTask-" + taskId + "] Error: " + e.getMessage());
+                    }
+                });
+            }
+        }
+        processor.stop();
+        System.out.println("All thread pool transactions completed. Final Balance: " + poolAccount.getBalance());
+
+        // 3. Producer-Consumer using wait() & notify() with TransactionBuffer
+        System.out.println("\n-> Part 3: Producer-Consumer Coordination with wait() & notify()");
+        TransactionBuffer buffer = new TransactionBuffer(3);
+        Thread producer = new Thread(() -> {
+            Command[] testCmds = {
+                new Command(TransactionType.DEPOSIT, "301", 500),
+                new Command(TransactionType.WITHDRAW, "301", 200),
+                new Command(TransactionType.TRANSFER, "301", 300),
+                new Command(TransactionType.DEPOSIT, "301", 1000)
+            };
+            for (Command cmd : testCmds) {
+                try {
+                    buffer.produce(cmd);
+                    Thread.sleep(30);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }, "Txn-Producer");
+
+        Thread consumer = new Thread(() -> {
+            for (int i = 0; i < 4; i++) {
+                try {
+                    buffer.consume();
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }, "Txn-Consumer");
+
+        producer.start();
+        consumer.start();
+        try {
+            producer.join();
+            consumer.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        System.out.println("Producer-Consumer coordination completed successfully.");
+
+        // 4. Deadlock Creation and Resolution
+        System.out.println("\n-> Part 4: Deadlock Creation and Lock-Ordering Resolution");
+        Account accA = new SavingsAccount(10, "UserA", 5000, 100);
+        Account accB = new SavingsAccount(20, "UserB", 5000, 100);
+
+        System.out.println("Step 4a: Demonstrating Deadlock (Opposite Lock Ordering)...");
+        Thread deadlockT1 = new Thread(() -> {
+            try {
+                Account.transferUnsafe(accA, accB, 100);
+            } catch (BankException ignored) {}
+        }, "Deadlock-Thread-AtoB");
+
+        Thread deadlockT2 = new Thread(() -> {
+            try {
+                Account.transferUnsafe(accB, accA, 100);
+            } catch (BankException ignored) {}
+        }, "Deadlock-Thread-BtoA");
+
+        deadlockT1.setDaemon(true);
+        deadlockT2.setDaemon(true);
+        deadlockT1.start();
+        deadlockT2.start();
+
+        try {
+            deadlockT1.join(300);
+            deadlockT2.join(300);
+        } catch (InterruptedException ignored) {}
+
+        if (deadlockT1.isAlive() && deadlockT2.isAlive()) {
+            System.out.println(">>> DEADLOCK DETECTED! Both threads are stuck in circular wait waiting for each other's locks.");
+        }
+
+        System.out.println("\nStep 4b: Resolving Deadlock (Consistent Lock Ordering: smaller ID first)...");
+        Account safeAccA = new SavingsAccount(10, "SafeUserA", 5000, 100);
+        Account safeAccB = new SavingsAccount(20, "SafeUserB", 5000, 100);
+
+        Thread safeT1 = new Thread(() -> {
+            try {
+                Account.transferSafe(safeAccA, safeAccB, 100);
+            } catch (BankException e) {
+                System.err.println(e.getMessage());
+            }
+        }, "Safe-Thread-AtoB");
+
+        Thread safeT2 = new Thread(() -> {
+            try {
+                Account.transferSafe(safeAccB, safeAccA, 100);
+            } catch (BankException e) {
+                System.err.println(e.getMessage());
+            }
+        }, "Safe-Thread-BtoA");
+
+        safeT1.start();
+        safeT2.start();
+
+        try {
+            safeT1.join();
+            safeT2.join();
+        } catch (InterruptedException ignored) {}
+
+        System.out.println(">>> DEADLOCK PREVENTED! Transfers executed successfully without blocking.");
+        System.out.println("Final AccA Balance: " + accA.getBalance() + ", AccB Balance: " + accB.getBalance());
+
         System.out.println("\n----- MiniBank Menu -----");
         Scanner sc = new Scanner(System.in);
         BankInfo bank = new BankInfo("MiniBank", "Main Branch");

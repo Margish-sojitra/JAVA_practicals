@@ -104,6 +104,51 @@ public abstract class Account implements Transactable, InterestBearing {
         }
     }
 
+    // Week 10: Deadlock demonstration - transfers locking in opposite order
+    public static void transferUnsafe(Account from, Account to, long amount) throws BankException {
+        if (from == null || to == null) {
+            throw new AccountNotFoundException("Account cannot be null.");
+        }
+        synchronized (from) {
+            System.out.println(Thread.currentThread().getName() + " locked Account " + from.getAccountNumber());
+            try {
+                Thread.sleep(100); // Artificial delay to ensure lock interleaving creates deadlock
+            } catch (InterruptedException ignored) {}
+            System.out.println(Thread.currentThread().getName() + " waiting to lock Account " + to.getAccountNumber());
+            synchronized (to) {
+                from.withdraw(amount);
+                to.deposit(amount);
+                System.out.println(Thread.currentThread().getName() + " finished transfer of " + amount);
+            }
+        }
+    }
+
+    // Week 10: Deadlock resolution - always lock account with smaller accountNumber first
+    public static void transferSafe(Account from, Account to, long amount) throws BankException {
+        if (from == null || to == null) {
+            throw new AccountNotFoundException("Account cannot be null.");
+        }
+        if (from.getAccountNumber() == to.getAccountNumber()) {
+            throw new BankException("Cannot transfer to the same account.");
+        }
+
+        Account first = from.getAccountNumber() < to.getAccountNumber() ? from : to;
+        Account second = from.getAccountNumber() < to.getAccountNumber() ? to : from;
+
+        synchronized (first) {
+            System.out.println(Thread.currentThread().getName() + " acquired lock on 1st Account " + first.getAccountNumber());
+            try {
+                Thread.sleep(20);
+            } catch (InterruptedException ignored) {}
+            synchronized (second) {
+                System.out.println(Thread.currentThread().getName() + " acquired lock on 2nd Account " + second.getAccountNumber());
+                from.withdraw(amount);
+                to.deposit(amount);
+                System.out.println(Thread.currentThread().getName() + " completed safe transfer of " + amount);
+            }
+        }
+    }
+
     public abstract boolean canWithdraw(long amount);
 
     @Override
