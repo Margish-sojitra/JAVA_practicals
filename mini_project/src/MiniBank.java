@@ -125,6 +125,68 @@ public class MiniBank {
             }
         } // AutoCloseable session closed here
 
+        // ===== Week 9: Concurrency, Race Conditions & Synchronization =====
+        System.out.println("\n----- Week 9: Concurrency, Race Conditions & Synchronization -----");
+
+        // Part 1: Unsynchronized deposits across 10 threads (demonstrating Race Condition)
+        System.out.println("-> Test 1: Unsynchronized Deposits (Demonstrating Race Condition)");
+        Account raceAccount = new SavingsAccount(201, "RaceTest", 0, 0);
+        int numThreads = 10;
+        int depositsPerThread = 50;
+        long depositAmount = 10;
+        double expectedTotal = (double) numThreads * depositsPerThread * depositAmount;
+
+        Thread[] unsyncThreads = new Thread[numThreads];
+        for (int i = 0; i < numThreads; i++) {
+            unsyncThreads[i] = new Thread(
+                new AccountWorker(raceAccount, depositsPerThread, depositAmount, true),
+                "Worker-Unsync-" + (i + 1)
+            );
+            unsyncThreads[i].start();
+        }
+
+        for (Thread t : unsyncThreads) {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        System.out.println("Expected Balance: " + expectedTotal);
+        System.out.println("Actual Balance (Unsynchronized): " + raceAccount.getBalance());
+        if (raceAccount.getBalance() < expectedTotal) {
+            System.out.println("Observed Race Condition: Lost updates occurred due to lack of synchronization.");
+        } else {
+            System.out.println("Note: No lost updates observed in this run.");
+        }
+
+        // Part 2: Synchronized deposits across 10 threads (Thread-safe)
+        System.out.println("\n-> Test 2: Synchronized Deposits (Thread-Safe with Synchronization)");
+        Account syncAccount = new SavingsAccount(202, "SyncTest", 0, 0);
+        Thread[] syncThreads = new Thread[numThreads];
+        for (int i = 0; i < numThreads; i++) {
+            syncThreads[i] = new Thread(
+                new AccountWorker(syncAccount, depositsPerThread, depositAmount, false),
+                "Worker-Sync-" + (i + 1)
+            );
+            syncThreads[i].start();
+        }
+
+        for (Thread t : syncThreads) {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        System.out.println("Expected Balance: " + expectedTotal);
+        System.out.println("Actual Balance (Synchronized): " + syncAccount.getBalance());
+        if (syncAccount.getBalance() == expectedTotal) {
+            System.out.println("Synchronization Success: Balance is exactly correct! All 10 threads synchronized safely.");
+        }
+
         System.out.println("\n----- MiniBank Menu -----");
         Scanner sc = new Scanner(System.in);
         BankInfo bank = new BankInfo("MiniBank", "Main Branch");

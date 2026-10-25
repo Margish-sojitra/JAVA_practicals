@@ -38,16 +38,31 @@ public abstract class Account implements Transactable, InterestBearing {
         this.balance = balance;
     }
 
+    // Week 9: Synchronized deposit to guarantee thread-safety
     @Override
-    public void deposit(long amount) throws InvalidAmountException {
+    public synchronized void deposit(long amount) throws InvalidAmountException {
         if (amount <= 0) {
             throw new InvalidAmountException("Deposit amount must be greater than zero. Received: " + amount);
         }
         this.balance += amount;
     }
 
+    // Week 9: Unsynchronized deposit to demonstrate race conditions
+    public void depositUnsync(long amount) throws InvalidAmountException {
+        if (amount <= 0) {
+            throw new InvalidAmountException("Deposit amount must be greater than zero. Received: " + amount);
+        }
+        double temp = this.balance;
+        try {
+            // Tiny sleep to force context switch / race condition
+            Thread.sleep(0, 1000);
+        } catch (InterruptedException ignored) {}
+        this.balance = temp + amount;
+    }
+
+    // Week 9: Synchronized withdraw to protect shared balance
     @Override
-    public boolean withdraw(long amount) throws InsufficientFundsException, InvalidAmountException {
+    public synchronized boolean withdraw(long amount) throws InsufficientFundsException, InvalidAmountException {
         if (amount <= 0) {
             throw new InvalidAmountException("Withdrawal amount must be greater than zero. Received: " + amount);
         }
