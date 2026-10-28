@@ -1,16 +1,6 @@
-================================================================================
-                   MINIBANK END-OF-DAY AUDIT & TRANSACTION REPORT               
-================================================================================
-Logs Folder: D:\JAVA_OOP\JAVA_practicals\mini_project\logs
-Report Time: 2026-10-28T16:52:47.337512300
---------------------------------------------------------------------------------
-LOG FILE NAME                |   SIZE (B) | LAST MODIFIED       | STATUS
---------------------------------------------------------------------------------
-daily_transactions.log       |        279 | 2026-10-28 16:52:47 | PROCESSED
---------------------------------------------------------------------------------
-Total Log Files Processed : 1
-Total Transactions Read   : 15
-Total Deposits Amount     : +$52500
-Total Withdrawals Amount  : -$7500
-Net Cash Flow             : +$45000
-================================================================================
+--- Transaction Logs Summary Report ---
+File: daily_transactions.log | Size: 372 bytes | Modified: 2026-10-28T11:49:44.1299162Z
+--------------------------------------
+Total Deposits: 70000
+Total Withdrawals: 10000
+Net Balance Change: 60000

@@ -179,7 +179,6 @@ public abstract class Account implements Transactable, InterestBearing, Serializ
         return Integer.hashCode(accountNumber);
     }
 
-    // Week 12: Natural ordering by accountNumber
     @Override
     public int compareTo(Account other) {
         if (other == null) {
