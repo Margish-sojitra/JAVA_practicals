@@ -6,8 +6,11 @@ import exception.InsufficientFundsException;
 import exception.InvalidAmountException;
 import model.annotation.Id;
 import model.annotation.Positive;
+import java.io.Serializable;
 
-public abstract class Account implements Transactable, InterestBearing {
+public abstract class Account implements Transactable, InterestBearing, Serializable, Comparable<Account> {
+
+    private static final long serialVersionUID = 1L;
 
     @Id
     private int accountNumber;
@@ -174,5 +177,14 @@ public abstract class Account implements Transactable, InterestBearing {
     @Override
     public int hashCode() {
         return Integer.hashCode(accountNumber);
+    }
+
+    // Week 12: Natural ordering by accountNumber
+    @Override
+    public int compareTo(Account other) {
+        if (other == null) {
+            return 1;
+        }
+        return Integer.compare(this.accountNumber, other.accountNumber);
     }
 }

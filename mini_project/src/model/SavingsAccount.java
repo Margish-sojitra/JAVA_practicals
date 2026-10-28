@@ -1,6 +1,8 @@
 package model;
 
 public class SavingsAccount extends Account {
+    private static final long serialVersionUID = 1L;
+
     private long minBalance;
 
     public SavingsAccount(int accountNumber, String ownerName, double balance, long minBalance) {

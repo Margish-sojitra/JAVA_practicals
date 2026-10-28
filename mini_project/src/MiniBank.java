@@ -4,7 +4,13 @@ import model.annotation.*;
 import service.*;
 import util.*;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Scanner;
+import java.util.concurrent.ConcurrentHashMap;
 
 // Requirement 2.5: Use one static import
 import static util.Validator.isValidMobile;
@@ -323,6 +329,129 @@ public class MiniBank {
 
         System.out.println(">>> DEADLOCK PREVENTED! Transfers executed successfully without blocking.");
         System.out.println("Final AccA Balance: " + accA.getBalance() + ", AccB Balance: " + accB.getBalance());
+
+        // ===== Week 11: Persistence, Serialization & NIO Reporting =====
+        System.out.println("\n----- Week 11: Persistence, Serialization & NIO Reporting -----");
+
+        // Ensure data, logs, and reports directories are always housed inside mini_project
+        Path baseDir = Files.exists(Paths.get("mini_project")) ? Paths.get("mini_project") : Paths.get(".");
+
+        // 1 & 2. StatePersister: Save accounts array to file, reload into a fresh array, and verify
+        Path accountsFile = baseDir.resolve("data").resolve("accounts.ser");
+        Account[] originalAccounts = new Account[] {
+            new SavingsAccount(401, "Grace Hopper", 7500, 1000),
+            new CurrentAccount(402, "Alan Turing", 12000, 5000),
+            new FixedDepositAccount(403, "Ada Lovelace", 25000)
+        };
+
+        System.out.println("Saving accounts to: " + accountsFile.toAbsolutePath());
+        try {
+            StatePersister.save(originalAccounts, accountsFile);
+            System.out.println("Accounts successfully saved with ObjectOutputStream.");
+
+            Account[] reloadedAccounts = StatePersister.load(accountsFile);
+            System.out.println("\nReloaded Accounts from file using ObjectInputStream:");
+            boolean allSurvived = true;
+            for (int i = 0; i < reloadedAccounts.length; i++) {
+                Account reloaded = reloadedAccounts[i];
+                Account orig = originalAccounts[i];
+                System.out.println("  -> " + reloaded);
+                if (reloaded.getAccountNumber() != orig.getAccountNumber() ||
+                    !reloaded.getOwnerName().equals(orig.getOwnerName()) ||
+                    Double.compare(reloaded.getBalance(), orig.getBalance()) != 0) {
+                    allSurvived = false;
+                }
+            }
+            System.out.println("Persistence Check: " + (allSurvived ? "SUCCESS [All account data survived!]" : "FAILED"));
+
+        } catch (Exception e) {
+            System.err.println("StatePersister error: " + e.getMessage());
+        }
+
+        // 3. Append-only TransactionLog
+        Path logsDir = baseDir.resolve("logs");
+        Path dailyLog = logsDir.resolve("daily_transactions.log");
+        System.out.println("\nWriting append-only transaction logs to: " + dailyLog);
+        try {
+            TransactionLog.append(dailyLog, "DEPOSIT 401 2500");
+            TransactionLog.append(dailyLog, "WITHDRAW 401 1000");
+            TransactionLog.append(dailyLog, "DEPOSIT 402 5000");
+            TransactionLog.append(dailyLog, "WITHDRAW 402 1500");
+            TransactionLog.append(dailyLog, "DEPOSIT 403 10000");
+            System.out.println("Transactions appended successfully using Files.write (CREATE & APPEND).");
+        } catch (Exception e) {
+            System.err.println("TransactionLog error: " + e.getMessage());
+        }
+
+        // 4 & 5. ReportGenerator: Walk logs folder with newDirectoryStream, compute totals, write summary
+        Path reportFile = baseDir.resolve("reports").resolve("daily_summary_report.txt");
+        System.out.println("\nGenerating End-of-Day Report using ReportGenerator...");
+        try {
+            String reportContent = ReportGenerator.generateReport(logsDir, reportFile);
+            System.out.println("Report successfully created at: " + reportFile.toAbsolutePath());
+            System.out.println("\n--- Printed End-of-Day Summary Report ---");
+            System.out.println(reportContent);
+        } catch (Exception e) {
+            System.err.println("ReportGenerator error: " + e.getMessage());
+        }
+
+        // ===== Week 12: Collections Framework & Milestone 2 Checkpoint =====
+        System.out.println("\n----- Week 12: Collections Framework & Milestone 2 Checkpoint -----");
+
+        // 1 & 2. AccountStore with HashMap<String, Account> and ArrayList<String> transaction history
+        AccountStore store = new AccountStore();
+        store.add(new SavingsAccount(501, "Nikola Tesla", 8500, 1000));
+        store.add(new CurrentAccount(502, "Marie Curie", 15200, 3000));
+        store.add(new FixedDepositAccount(503, "Albert Einstein", 30000));
+        store.add(new SavingsAccount(504, "Isaac Newton", 4200, 500));
+        store.add(new CurrentAccount(505, "Galileo Galilei", 19500, 6000));
+
+        System.out.println("Total Accounts in Store: " + store.size());
+        System.out.println("Lookup by String key '502': " + store.get("502"));
+        System.out.println("Lookup by int key 503: " + store.get(503));
+
+        // 3. sortedByBalance() using Comparator
+        System.out.println("\n-> Accounts Sorted by Balance (Highest to Lowest using Comparator):");
+        ArrayList<Account> byBalance = store.sortedByBalance();
+        for (Account acc : byBalance) {
+            System.out.printf("  Acc #%d | %-16s | Balance: $%.2f | Rate: %.1f%%%n",
+                    acc.getAccountNumber(), acc.getOwnerName(), acc.getBalance(), acc.interestRate());
+        }
+
+        // 4. Comparable<Account> natural ordering (sorted by account number)
+        System.out.println("\n-> Accounts Sorted by Natural Ordering (Comparable compareTo - Account Number):");
+        ArrayList<Account> naturalOrder = store.getAll();
+        Collections.sort(naturalOrder);
+        for (Account acc : naturalOrder) {
+            System.out.printf("  Acc #%d | %-16s | Balance: $%.2f%n",
+                    acc.getAccountNumber(), acc.getOwnerName(), acc.getBalance());
+        }
+
+        // Transaction history check
+        System.out.println("\n-> AccountStore Transaction History (ArrayList<String>):");
+        for (String record : store.getTransactionHistory()) {
+            System.out.println("  [Audit] " + record);
+        }
+
+        // 5. TransactionProcessor with ConcurrentHashMap for thread-safe access
+        System.out.println("\n-> Thread-Safe Processing with ConcurrentHashMap & TransactionProcessor:");
+        ConcurrentHashMap<String, Account> concurrentMap = new ConcurrentHashMap<>();
+        for (Account acc : store.getAll()) {
+            concurrentMap.put(String.valueOf(acc.getAccountNumber()), acc);
+        }
+
+        TransactionProcessor concurrentProcessor = new TransactionProcessor(concurrentMap);
+        System.out.println("Executing concurrent deposits and withdrawals across worker threads...");
+        concurrentProcessor.processDeposit("501", 1500);
+        concurrentProcessor.processWithdraw("502", 2000);
+        concurrentProcessor.processDeposit("504", 800);
+        concurrentProcessor.processWithdraw("505", 3500);
+        concurrentProcessor.stop();
+
+        System.out.printf("Concurrent processing completed. Updated Acc #501 Balance: $%.2f%n",
+                concurrentMap.get("501").getBalance());
+        System.out.printf("Updated Acc #502 Balance: $%.2f%n",
+                concurrentMap.get("502").getBalance());
 
         System.out.println("\n----- MiniBank Menu -----");
         Scanner sc = new Scanner(System.in);
